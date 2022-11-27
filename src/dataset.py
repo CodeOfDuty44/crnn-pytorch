@@ -9,6 +9,48 @@ import cv2
 from PIL import Image
 import numpy as np
 
+class RelimetricsDataset(Dataset):
+    CHARS = '0123456789abcdefghijklmnopqrstuvwxyz'
+    CHAR2LABEL = {char: i + 1 for i, char in enumerate(CHARS)}
+    LABEL2CHAR = {label: char for char, label in CHAR2LABEL.items()}
+
+    def __init__(self, root_dir=None, mode=None, paths=None, img_height=32, img_width=100):
+        self.root_dir = root_dir
+        self.mode = mode
+        self.img_height = img_height
+        self.img_width = img_width
+        self.labels = self.root_dir + "/train.txt" if mode == "train" else self.root_dir + "/val.txt"
+        self.labels = open(self.labels, "r")
+        self.labels = self.labels.read().split("\n")
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, index):
+        if self.mode == "train":
+            path = self.root_dir + "/train_imgs/" + self.labels[index]
+        elif self.mode == "val":
+            path = self.root_dir + "/val_imgs/" + self.labels[index]
+
+        image = Image.open(path).convert('L')  # grey-scale
+
+
+        image = image.resize((self.img_width, self.img_height), resample=Image.BILINEAR)
+        image = np.array(image)
+        image = image.reshape((1, self.img_height, self.img_width))
+        image = (image / 127.5) - 1.0
+
+        image = torch.FloatTensor(image)
+
+        text = "sn" + self.labels[index].split(".")[0] 
+        text = text.lower()
+        target = [self.CHAR2LABEL[c] for c in text]
+        target_length = [len(target)]
+
+
+        target = torch.LongTensor(target)
+        target_length = torch.LongTensor(target_length)
+        return image, target, target_length
 
 class Synth90kDataset(Dataset):
     CHARS = '0123456789abcdefghijklmnopqrstuvwxyz'
@@ -88,3 +130,6 @@ def synth90k_collate_fn(batch):
     targets = torch.cat(targets, 0)
     target_lengths = torch.cat(target_lengths, 0)
     return images, targets, target_lengths
+
+dataset = RelimetricsDataset("/home/serkan/Desktop/reli_assignment_data", mode = "train")
+

@@ -6,10 +6,11 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 from torch.nn import CTCLoss
 
-from dataset import Synth90kDataset, synth90k_collate_fn
+from dataset import Synth90kDataset, synth90k_collate_fn, RelimetricsDataset
 from model import CRNN
 from evaluate import evaluate
 from config import train_config as config
+from torch.utils.tensorboard import SummaryWriter
 
 
 def train_batch(crnn, data, optimizer, criterion, device):
@@ -48,26 +49,26 @@ def main():
     img_height = config['img_height']
     data_dir = config['data_dir']
 
+    writer = SummaryWriter()
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'device: {device}')
 
-    train_dataset = Synth90kDataset(root_dir=data_dir, mode='train',
+    train_dataset = RelimetricsDataset(root_dir=data_dir, mode='train',
                                     img_height=img_height, img_width=img_width)
-    valid_dataset = Synth90kDataset(root_dir=data_dir, mode='dev',
+    valid_dataset = RelimetricsDataset(root_dir=data_dir, mode='val',
                                     img_height=img_height, img_width=img_width)
 
     train_loader = DataLoader(
         dataset=train_dataset,
         batch_size=train_batch_size,
         shuffle=True,
-        num_workers=cpu_workers,
-        collate_fn=synth90k_collate_fn)
+        num_workers=cpu_workers)
     valid_loader = DataLoader(
         dataset=valid_dataset,
         batch_size=eval_batch_size,
         shuffle=True,
-        num_workers=cpu_workers,
-        collate_fn=synth90k_collate_fn)
+        num_workers=cpu_workers)
 
     num_class = len(Synth90kDataset.LABEL2CHAR) + 1
     crnn = CRNN(1, img_height, img_width, num_class,
@@ -96,16 +97,16 @@ def main():
             tot_train_count += train_size
             if i % show_interval == 0:
                 print('train_batch_loss[', i, ']: ', loss / train_size)
-
-            if i % valid_interval == 0:
-                evaluation = evaluate(crnn, valid_loader, criterion,
-                                      decode_method=config['decode_method'],
-                                      beam_size=config['beam_size'])
-                print('valid_evaluation: loss={loss}, acc={acc}'.format(**evaluation))
+                writer.add_scalar("Loss/train", loss / train_size, i)
+            # if i % valid_interval == 0:
+            #     evaluation = evaluate(crnn, valid_loader, criterion,
+            #                           decode_method=config['decode_method'],
+            #                           beam_size=config['beam_size'])
+            #     print('valid_evaluation: loss={loss}, acc={acc}'.format(**evaluation))
 
                 if i % save_interval == 0:
                     prefix = 'crnn'
-                    loss = evaluation['loss']
+                    #loss = evaluation['loss']
                     save_model_path = os.path.join(config['checkpoints_dir'],
                                                    f'{prefix}_{i:06}_loss{loss}.pt')
                     torch.save(crnn.state_dict(), save_model_path)

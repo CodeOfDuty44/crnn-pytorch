@@ -1,6 +1,6 @@
 
 common_config = {
-    'data_dir': 'data/mnt/ramdisk/max/90kDICT32px/',
+    'data_dir': '/home/serkan/Desktop/reli_assignment_data',
     'img_width': 100,
     'img_height': 32,
     'map_to_seq_hidden': 64,
@@ -17,7 +17,7 @@ train_config = {
     'valid_interval': 500,
     'save_interval': 2000,
     'cpu_workers': 4,
-    'reload_checkpoint': None,
+    'reload_checkpoint': "checkpoints/crnn_synth90k.pt",
     'valid_max_iter': 100,
     'decode_method': 'greedy',
     'beam_size': 10,
